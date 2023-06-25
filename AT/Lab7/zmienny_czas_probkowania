@@ -1,0 +1,82 @@
+clear;
+close all;
+clc;
+
+T_sim   = 40;
+
+% Controller timing parameters
+Tc              = 0.1;
+time_controller = 0:Tc:T_sim;
+N_sampling      = 100;
+% Simulation timing parameters
+Ts      = Tc / N_sampling;
+time    = 0:Ts:T_sim;
+
+% Initial conditions
+xi =    0;
+qi =    0;
+ui =    0;
+y0 =    0;
+
+% Storage vectors
+x = xi;
+q = qi;
+u = ui;
+y = y0;
+
+% Plant parameters setup
+Vm = 3;
+Vd = 2;
+
+% Controller setup
+d  = 1;
+Tp = 1;
+modi = 1;
+signal = 1;
+signal_c = signal;
+
+for i = 1:(length(time_controller)-1)
+
+    qi = 1;
+    if (i > 100)
+        qi = 3;
+    end
+    q = [q, qi];
+    
+    k = 1;
+    T = Vm / qi;
+    Delay = Vd / qi;
+    [A, B, C, D] = TranslateModel(k, T);
+    
+    for j = 1:N_sampling
+        [xi, yi] = Plant(xi, u, A, B, C, D, Delay, Ts);
+        % Save plant state and output
+        x = [x, xi];
+        y = [y, yi];
+    end
+    
+    ui = 2;
+    
+    if (mod(i, ceil(Tp / Tc)) == modi)
+        Tp = Vd / (d * qi);
+        signal = signal + 1;
+        modi = mod(i, ceil(Tp / Tc));
+    end
+    
+    signal_c = [signal_c, signal];
+    
+    % Save controller state
+    u = [u, ui];
+end
+
+% Plot results
+figure;
+subplot(2, 1, 1);
+plot(time, y);
+grid on;
+subplot(2, 1, 2);
+plot(time_controller, u);
+grid on;
+
+figure;
+stairs(time_controller, signal_c);
